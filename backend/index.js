@@ -13,21 +13,36 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true
-}));
+const allowedOrigins = [
+  "http://localhost:5173",
+  process.env.CLIENT_URL
+].filter(Boolean);
 
-app.use(express.json());
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    }
+  })
+);
+
+app.use(express.json({ limit: "10kb" }));
 
 app.get("/", (req, res) => {
   res.send("Talk-To-Me server is running!");
 });
 
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 const server = http.createServer(app);
 const io = setupSocket(server);
 
-// Make Socket.IO available to controllers through req.app
 app.set("io", io);
 
 app.use("/api/users", userRoutes);
@@ -36,11 +51,16 @@ app.use("/api/messages", messageRoutes);
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
-  await connectDB();
+  try {
+    await connectDB();
 
-  server.listen(PORT, () => {
-    console.log(`Talk-To-Me server running on port ${PORT}`);
-  });
+    server.listen(PORT, "0.0.0.0", () => {
+      console.log(`Talk-To-Me server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error("Failed to start Talk-To-Me:", error.message);
+    process.exit(1);
+  }
 };
 
 startServer();
