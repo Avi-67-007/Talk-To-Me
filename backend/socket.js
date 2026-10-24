@@ -5,11 +5,16 @@ import jwt from "jsonwebtoken";
 const onlineUsers = new Map();
 
 const setupSocket = (httpServer) => {
+  const allowedOrigins = [
+    "http://localhost:5173",
+    process.env.CLIENT_URL,
+  ].filter(Boolean);
+
   const io = new Server(httpServer, {
     cors: {
-      origin: "http://localhost:5173",
-      methods: ["GET", "POST"]
-    }
+      origin: allowedOrigins,
+      methods: ["GET", "POST"],
+    },
   });
 
   io.use((socket, next) => {
@@ -35,6 +40,7 @@ const setupSocket = (httpServer) => {
 
   io.on("connection", (socket) => {
     const userId = socket.userId;
+
     socket.join(userId);
     console.log("Authenticated socket connected:", userId);
 
@@ -52,7 +58,6 @@ const setupSocket = (httpServer) => {
       }
     });
 
-    // Typing indicators
     socket.on("typing:start", ({ receiverId } = {}) => {
       if (!receiverId) return;
 
@@ -61,7 +66,7 @@ const setupSocket = (httpServer) => {
       if (receiverSocketId) {
         io.to(receiverSocketId).emit("user:typing", {
           userId,
-          isTyping: true
+          isTyping: true,
         });
       }
     });
@@ -74,7 +79,7 @@ const setupSocket = (httpServer) => {
       if (receiverSocketId) {
         io.to(receiverSocketId).emit("user:typing", {
           userId,
-          isTyping: false
+          isTyping: false,
         });
       }
     });
